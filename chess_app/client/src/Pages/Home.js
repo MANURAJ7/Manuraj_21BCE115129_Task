@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-function Home({ socket }) {
-  const [roomName, setRoomName] = useState("");
+function Home({ socket, roomName, setRoomName }) {
   const navigate = useNavigate();
-
   useEffect(() => {
     if (socket) {
       socket.on("join-room-res", (res) => {
         if (res === "ok") {
-          navigate("/Game", { state: { roomName: roomName } });
+          navigate("/Game");
         } else {
           alert("Can't Join Room. Room Is Full");
         }

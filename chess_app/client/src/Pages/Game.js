@@ -1,12 +1,7 @@
-// import io from "socket.io-client";
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import "./Game.css";
 
-const Game = ({ socket }) => {
-  const location = useLocation();
-  const { roomName } = location.state || {};
-
+const Game = ({ socket, roomName }) => {
   const [turn, setTurn] = useState(false);
   const [id, setId] = useState(null);
   const [grid, setGrid] = useState(null);
@@ -23,10 +18,12 @@ const Game = ({ socket }) => {
     if (roomName && !grid) socket.emit("get-grid", roomName);
 
     const handleGridResponse = (newGrid, newId, turnId) => {
-      if (newGrid) {
-        setGrid(newGrid);
+      console.log("new grid : ", newGrid);
+      if (!grid && newGrid) {
         setId(newId);
-        if (turnId === id) setTurn(true);
+        setGrid(newGrid);
+        if (newId === turnId) setTurn(true);
+        else setTurn(false);
       } else {
         console.error("Received an invalid grid");
       }
@@ -37,15 +34,12 @@ const Game = ({ socket }) => {
     return () => {
       socket.off("get-grid-res", handleGridResponse);
     };
-  }, [socket, grid, id, roomName]);
+  }, [socket]);
 
   useEffect(() => {
-    socket.on("move-update", (playerId, move, turnId) => {
-      if (turnId === id) setTurn(true);
-      console.log("move from: ", playerId, " is : ", move);
-      if (playerId !== id) {
-        executeMove(playerId, move);
-      }
+    socket.on("move-update", (newGrid, playerId, move) => {
+      setGrid([...newGrid]);
+      if (playerId !== id) setTurn(true);
     });
 
     return () => {
@@ -54,7 +48,7 @@ const Game = ({ socket }) => {
   }, [socket, id]);
 
   useEffect(() => {
-    if (grid) {
+    if (grid && id) {
       initializeCharacters();
     }
   }, [grid]);
@@ -63,7 +57,7 @@ const Game = ({ socket }) => {
     const newCharacters = { ...characters };
     grid.forEach((row, rowIndex) => {
       row.forEach((cell, cellIndex) => {
-        if (cell) {
+        if (cell !== "x") {
           const [cellPlayerId, charName] = cell.split("-");
           if (cellPlayerId === id) {
             newCharacters[charName.toLowerCase()] = {
@@ -75,17 +69,15 @@ const Game = ({ socket }) => {
       });
     });
     setCharacters(newCharacters);
+    console.log(characters);
   };
 
   const handleCommand = (e) => {
     e.preventDefault();
     const newCommand = checkValidMove(command);
-    if (!(newCommand === "")) {
-      if (executeCommand(newCommand)) {
-        //if B then reverse the commands back
-        setTurn(false);
-        socket.emit("newMove", newCommand, roomName);
-      } else wrongMoveHandler();
+    if (newCommand !== "" && executeCommand(newCommand)) {
+      console.log(" before call :", grid);
+      socket.emit("newMove", newCommand, roomName);
     } else wrongMoveHandler();
     setCommand("");
   };
@@ -142,6 +134,12 @@ const Game = ({ socket }) => {
     let isValid = 1;
     const [characterName, move] = command.split(":");
     const character = characters[characterName];
+
+    if (!character.alive) {
+      alert("Dead Character");
+      return false;
+    }
+
     let [x, y] = character.position;
     let newX = x;
     let newY = y;
@@ -213,129 +211,29 @@ const Game = ({ socket }) => {
 
       if (grid[x][y] && grid[x][y].startsWith(id)) {
         alert("Cant kill own characters", grid[x][y]);
-        isValid = 0;
-        break;
-      }
-    }
-
-    if (!isValid) {
-      return false;
-    } else {
-      x = i;
-      y = j;
-      let prevCellValue = grid[x][y];
-      grid[x][y] = "x";
-      while (x !== newX || y !== newY) {
-        if (x < newX) x++;
-        else if (x > newX) x--;
-        if (y > newY) y--;
-        else if (y < newY) y++;
-        grid[x][y] = "x";
-      }
-      grid[newX][newY] = prevCellValue;
-      setGrid([...grid]);
-      characters[characterName].position = [newX, newY];
-
-      return true;
-    }
-  }
-
-  function executeMove(playerId, move) {
-    if (!grid) return; // Ensure grid is not null
-
-    let [characterName, direction] = move.split(":");
-    let targetCharacter = `${playerId}-${characterName}`;
-    targetCharacter = targetCharacter.toUpperCase();
-    direction = direction.toLowerCase();
-
-    let x, y;
-
-    // Find the character's current position in the grid
-    for (let i = 0; i < grid.length; i++) {
-      for (let j = 0; j < grid[i].length; j++) {
-        if (grid[i][j] === targetCharacter) {
-          x = i;
-          y = j;
-          break;
-        }
-      }
-    }
-
-    let newX = x;
-    let newY = y;
-
-    switch (direction) {
-      case "l":
-        newY -= 1;
-        break;
-      case "r":
-        newY += 1;
-        break;
-      case "f":
-        newX -= 1;
-        break;
-      case "b":
-        newX += 1;
-        break;
-      case "fl":
-        newX -= 2;
-        newY -= 2;
-        break;
-      case "fr":
-        newX -= 2;
-        newY += 2;
-        break;
-      case "bl":
-        newX += 2;
-        newY -= 2;
-        break;
-      case "br":
-        newX += 2;
-        newY += 2;
-        break;
-      default:
         return false;
-    }
-
-    if (characterName.toLowerCase() === "h1") {
-      switch (direction) {
-        case "l":
-          newY -= 1;
-          break;
-        case "r":
-          newY += 1;
-          break;
-        case "f":
-          newX -= 1;
-          break;
-        case "b":
-          newX += 1;
-          break;
-        default:
-          return false;
       }
     }
 
-    if (newX >= 0 && newX < 5 && newY >= 0 && newY < 5) {
+    x = i;
+    y = j;
+    let prevCellValue = grid[x][y];
+    grid[x][y] = "x";
+    while (x != newX || y != newY) {
+      if (x < newX) x++;
+      else if (x > newX) x--;
+      if (y > newY) y--;
+      else if (y < newY) y++;
       grid[x][y] = "x";
-
-      while (x !== newX || y !== newY) {
-        if (x < newX) x++;
-        else if (x > newX) x--;
-        if (y > newY) y--;
-        else if (y < newY) y++;
-        if (grid[x][y].startsWith(id)) {
-          let [playerIdd, deadCharacterName] = grid[x][y].split("-");
-          deadCharacterName = deadCharacterName.toLowerCase();
-          characters[deadCharacterName].alive = 0;
-        }
-        grid[x][y] = "x";
-      }
-
-      grid[newX][newY] = targetCharacter;
-      setGrid([...grid]);
     }
+    grid[newX][newY] = prevCellValue;
+    setGrid([...grid]);
+    console.log(grid);
+    characters[characterName].position = [newX, newY];
+
+    return true;
   }
+
   return (
     <div className="game-container">
       <h2>Hi {socket.id} !</h2>
@@ -350,7 +248,7 @@ const Game = ({ socket }) => {
               {(id === "B" ? [...row].reverse() : row).map(
                 (cell, cellIndex) => (
                   <div className="grid-cell" key={cellIndex}>
-                    {cell}
+                    {cell === "x" ? "" : cell}
                   </div>
                 )
               )}
@@ -360,8 +258,8 @@ const Game = ({ socket }) => {
       ) : (
         <p>Loading...</p>
       )}
-      {turn ? (
-        <div className="input-container">
+      {turn && id !== "V" ? (
+        <div className="game-controls">
           <input
             type="text"
             value={command}

@@ -58,16 +58,14 @@ io.on("connection", (socket) => {
 
   socket.on("get-grid", (roomName) => {
     if (rooms[roomName]) {
-      console.log(socket.id);
-      console.log(rooms[roomName].A, " and ", rooms[roomName].B);
-      if (rooms[roomName].A == socket.id)
+      if (rooms[roomName].A === socket.id)
         socket.emit(
           "get-grid-res",
           rooms[roomName].grid,
           "A",
           rooms[roomName].turn
         );
-      else if (rooms[roomName].B == socket.id)
+      else if (rooms[roomName].B === socket.id)
         socket.emit(
           "get-grid-res",
           rooms[roomName].grid,
@@ -83,14 +81,14 @@ io.on("connection", (socket) => {
       console.log("A moved : ", move);
       if (executeMove(move, "A", roomName)) {
         rooms[roomName].turn = "B";
-        io.to(roomName).emit("move-update", "A", move, rooms[roomName].turn);
+        io.to(roomName).emit("move-update", rooms[roomName].grid, "A", move);
       }
     }
     if (rooms[roomName] && socket.id === rooms[roomName].B) {
       console.log("B moved : ", move);
       if (executeMove(move, "B", roomName)) {
         rooms[roomName].turn = "A";
-        io.to(roomName).emit("move-update", "B", move, rooms[roomName].turn);
+        io.to(roomName).emit("move-update", rooms[roomName].grid, "B", move);
       }
     }
   });
@@ -108,18 +106,12 @@ io.on("connection", (socket) => {
           `User ${socket.id} disconnected from room ${roomName} as B`
         );
       }
-
-      // if (!rooms[roomName].A && !rooms[roomName].B) {
-      //   delete rooms[roomName];
-      //   console.log(`Room ${roomName} deleted as both users disconnected`);
-      // }
     }
   });
 });
 
 const executeMove = (move, id, roomName) => {
-  const room = rooms[roomName];
-  if (!room) return false;
+  if (!rooms[roomName]) return false;
 
   let [characterName, direction] = move.split(":");
   let targetCharacter = `${id}-${characterName}`;
@@ -129,9 +121,9 @@ const executeMove = (move, id, roomName) => {
   let x, y;
 
   // Find the character's current position in the grid
-  for (let i = 0; i < room.grid.length; i++) {
-    for (let j = 0; j < room.grid[i].length; j++) {
-      if (room.grid[i][j] === targetCharacter) {
+  for (let i = 0; i < rooms[roomName].grid.length; i++) {
+    for (let j = 0; j < rooms[roomName].grid[i].length; j++) {
+      if (rooms[roomName].grid[i][j] === targetCharacter) {
         x = i;
         y = j;
         break;
@@ -202,7 +194,8 @@ const executeMove = (move, id, roomName) => {
   // Ensure the new position is within the grid boundaries
   if (newX >= 0 && newX < 5 && newY >= 0 && newY < 5) {
     // Move the character to the new position if it's a valid move
-    room.grid[x][y] = "x";
+    const prevValue = rooms[roomName].grid[x][y];
+    rooms[roomName].grid[x][y] = "x";
 
     while (x !== newX || y !== newY) {
       if (x < newX) x++;
@@ -210,10 +203,10 @@ const executeMove = (move, id, roomName) => {
       if (y > newY) y--;
       else if (y < newY) y++;
       // if(room.grid[x][y]!=="")
-      room.grid[x][y] = "x";
+      rooms[roomName].grid[x][y] = "x";
     }
 
-    room.grid[newX][newY] = targetCharacter;
+    rooms[roomName].grid[newX][newY] = prevValue;
     return true;
   }
 

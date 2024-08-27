@@ -6,6 +6,7 @@ import { io } from "socket.io-client";
 
 const App = () => {
   const [socket, setSocket] = useState(null);
+  const [roomName, setRoomName] = useState(null);
 
   useEffect(() => {
     // Initialize the socket connection
@@ -21,8 +22,20 @@ const App = () => {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Home socket={socket} />} />
-        <Route path="/Game" element={<Game socket={socket} />} />
+        <Route
+          path="/"
+          element={
+            <Home
+              socket={socket}
+              roomName={roomName}
+              setRoomName={setRoomName}
+            />
+          }
+        />
+        <Route
+          path="/Game"
+          element={<Game socket={socket} roomName={roomName} />}
+        />
       </Routes>
     </>
   );
