@@ -40,6 +40,7 @@ const Game = ({ socket, roomName }) => {
     socket.on("move-update", (newGrid, playerId, move) => {
       setGrid([...newGrid]);
       if (playerId !== id) setTurn(true);
+      else setTurn(false);
     });
 
     return () => {
