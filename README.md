@@ -39,3 +39,7 @@ npm start
 - All moves are relative to the player's perspective.
 - Move command format: For Pawn and Hero1: <character_name>: (e.g., P1:L, H1:F) For Hero2: <character_name>: (e.g., H2:FL, H2:BR)
 - Any difference in there rules, character name or move will result in error.`
+
+## Demo images
+
+- Updated in public folder in Client dir for reference.
